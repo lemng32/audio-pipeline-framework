@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 
 from typing import Optional
 from pathlib import Path
@@ -39,11 +40,10 @@ def load_vivoice_from_disk(ds_path: str) -> Dataset:
     print("cac")
     return None
   files = [
-    f
-    for f in Path(ds_path).iterdir()
-    if f.startswith("parquet") and f.endswith("arrow")
+    f for f in Path(ds_path).iterdir()
+    if f.is_file() and f.name.startswith("parquet") and f.name.endswith("arrow")
   ]
-  ds = concatenate_datasets([Dataset.from_file(f"{ds_path}/{file}") for file in files])
+  ds = concatenate_datasets([Dataset.from_file(f"{file}") for file in files])
   return ds
 
 
@@ -69,6 +69,7 @@ def load_by_channel():
 def save_to_dataset(
   df: pd.DataFrame,
   out_dataset_path: str,
+  out_audio_path: str,
   channel: str,
 ):
   """
@@ -83,5 +84,6 @@ def save_to_dataset(
   Returns:
       Dataset: The created dataset.
   """
-  ds = Dataset.from_pandas(df, preserve_index=False).cast_column("audio", Audio())
+  os.chdir(f"{out_audio_path}/{channel}")
+  ds = Dataset.from_pandas(df[["channel", "text", "audio"]], preserve_index=False).cast_column("audio", Audio())
   ds.save_to_disk(dataset_path=f"{out_dataset_path}/{channel}", max_shard_size="500MB")

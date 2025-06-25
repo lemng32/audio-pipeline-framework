@@ -9,7 +9,9 @@ def main_process():
     token=conf["huggingface_token"],
     load_from_disk=True,
     dataset_disk_path=conf["dataset_path"],
-    diarize_filter=False,
+    diarize_filter=True,
+    save_dataset_to_disk=True,
+    out_dataset_path=out_dataset_path
   )
 
 
