@@ -4,7 +4,7 @@ from pyannote.audio import Pipeline
 from tqdm import tqdm
 from typing import Optional
 from pathlib import Path
-from vivoice_preprocess.preprocess_audio import (
+from vivoice_preprocess.audio_utils import (
   merge_audio,
   save_processed_audio,
   filter_by_diariazation,
@@ -12,20 +12,20 @@ from vivoice_preprocess.preprocess_audio import (
 from vivoice_preprocess.dataset_utils import (
   load_vivoice,
   load_vivoice_from_disk,
-  save_to_dataset,
+  create_and_save_dataset,
   filter_by_channel,
 )
 
 
 def create_diarization_pipe(token: str = None) -> Pipeline:
   """
-  Initialize Pyannote's Diarization Pipeline.
+  Instantiate Pyannote's Diarization Pipeline.
 
   Args:
       token (str, optional): Huggingface token. Defaults to None.
 
   Returns:
-      bool: True if the pipeline is successfully initialized.
+      Pipeline: The diarization pipeline instance.
   """
   pipe = Pipeline.from_pretrained(
     "pyannote/speaker-diarization-3.1",
@@ -55,12 +55,12 @@ def preprocess(
       dataset_disk_path (Optional[str], optional): The path where the dataset files are stored, in .arrow format. Defaults to None.
       cache_dir (Optional[str], optional): Path for dataset's cache directory. Defaults to None, which will use ~/.cache/huggingface.
       save_dataset_to_disk (Optional[bool], optional): Whether to save the dataset to disk. Defaults to False.
-      out_dataset_path (Optional[str], optional): _description_. Defaults to None.
-      diarize_filter (Optional[bool], optional): _description_. Defaults to True.
+      out_dataset_path (Optional[str], optional): The output path for the created dataset. Defaults to None.
+      diarize_filter (Optional[bool], optional): Whether to run diarization to filter the audios. Defaults to True.
 
   Raises:
-      FileNotFoundError: _description_
-      FileNotFoundError: _description_
+      FileNotFoundError: Dataset input path not found
+      ValueError: Dataset output path not defined
   """
 
   if load_from_disk and not dataset_disk_path:
@@ -72,7 +72,7 @@ def preprocess(
 
   if save_dataset_to_disk:
     if not out_dataset_path:
-      raise FileNotFoundError("Dataset output path not defined")
+      raise ValueError("Dataset output path not defined")
     else:
       out_dataset_path = str(Path(out_dataset_path).expanduser().resolve())
       if not Path(out_dataset_path).is_dir():
@@ -99,7 +99,7 @@ def preprocess(
       audio_df = filter_by_diariazation(df=audio_df, dia_pipe=pipe)
     save_processed_audio(channel=channel, df=audio_df, out_audio_path=out_audio_path)
     if save_dataset_to_disk:
-      save_to_dataset(
+      create_and_save_dataset(
         df=audio_df,
         out_dataset_path=out_dataset_path,
         out_audio_path=out_audio_path,

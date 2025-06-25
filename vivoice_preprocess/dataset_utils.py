@@ -48,14 +48,15 @@ def load_vivoice_from_disk(ds_path: str) -> Dataset:
 
 
 def filter_by_channel(ds: Dataset, channel: str) -> Dataset:
-  """_summary_
+  """
+  Filters the dataset by the specified channel.
 
   Args:
-      ds (Dataset): _description_
-      channel (str): _description_
+      ds (Dataset): The loaded dataset.
+      channel (str): The channel to filter by.
 
   Returns:
-      Dataset: _description_
+      Dataset: A dataset containing only entries of the filtered channel.
   """
   return ds.filter(
     lambda batch: [c == channel for c in batch["channel"]], batched=True
@@ -66,23 +67,20 @@ def load_by_channel():
   return -1
 
 
-def save_to_dataset(
+def create_and_save_dataset(
   df: pd.DataFrame,
   out_dataset_path: str,
   out_audio_path: str,
   channel: str,
 ):
   """
-  Create a dataset from the provided DataFrame and save it to disk.
+  Create a dataset from the provided dataframe and save it to disk.
 
   Args:
-      df (pd.DataFrame): The provided pandas DataFrame.
-      save_to_disk (Optional[bool]): Whether to save the dataset to disk.
-      out_dataset_path (Optional[str]): The output directory for the created dataset.
-      channel (Optional[str]): The channel attributed to the DataFrame.
-
-  Returns:
-      Dataset: The created dataset.
+      df (pd.DataFrame): The provided dataframe.
+      out_dataset_path (str): The output path for the created dataset._
+      out_audio_path (str): _
+      channel (str): _description_
   """
   os.chdir(f"{out_audio_path}/{channel}")
   ds = Dataset.from_pandas(df[["channel", "text", "audio"]], preserve_index=False).cast_column("audio", Audio())
