@@ -17,12 +17,7 @@ from utils.dataset_utils import (
 
 
 class VivoicePreprocessor:
-  def __init__(
-    self,
-    out_audio_path: str,
-    token: str,
-    use_diarization: bool = True
-  ):
+  def __init__(self, out_audio_path: str, token: str, use_diarization: bool = True):
     self.out_audio_path = resolve_path(out_audio_path)
     self.token = token
     self.pipe = self._create_diarization_pipe(token) if use_diarization else None
@@ -44,9 +39,9 @@ class VivoicePreprocessor:
     pipe.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     return pipe
 
-  def preprocess(
+  def run(
     self,
-    save_dataset_to_disk: Optional[bool] = False,
+    save_to_dataset: Optional[bool] = False,
     out_dataset_path: Optional[str] = None,
   ):
     """
@@ -65,25 +60,25 @@ class VivoicePreprocessor:
         FileNotFoundError: Dataset input path not found
         ValueError: Dataset output path not defined
     """
-    if save_dataset_to_disk:
+    if save_to_dataset:
       out_dataset_path = resolve_path(out_dataset_path)
-    
+
     ds = load_vivoice(token=self.token)
 
     channels = ds.unique("channel")
-    # Hard-coded channels
-    # tmp = [
-    #   channels[channels.index("@tamhonanuong")],
-    #   channels[channels.index("@Nhantaidaiviet")],
-    # ]
-    tmp = [channels[channels.index("@PhimHOTTK-L")]]
+    # Hard-coded channels for quick testing
+    tmp = [channels[channels.index("@truyenhinhlaocai")]]
     for channel in tqdm(tmp, desc="Processing current channel: "):
       cur_channel_ds = filter_by_channel(ds=ds, channel=channel)
       audio_df = merge_audio(ds=cur_channel_ds)
       if self.pipe:
         audio_df = filter_by_diariazation(df=audio_df, dia_pipe=self.pipe)
-      save_processed_audio(df=audio_df, channel=channel, out_audio_path=self.out_audio_path)
-      if save_dataset_to_disk:
+      save_processed_audio(
+        df=audio_df,
+        channel=channel,
+        out_audio_path=self.out_audio_path
+      )
+      if save_to_dataset:
         create_and_save_dataset(
           df=audio_df,
           channel=channel,

@@ -1,15 +1,15 @@
 import json
 from vivoice_preprocess.preprocessor import VivoicePreprocessor
 
+
 def main_process():
   """
-  TO-DO: Add a description for what this do
+  TO-DO: Add description
   """
-  preprocessor = VivoicePreprocessor(out_audio_path=out_audio_path, token=conf["huggingface_token"])
-  preprocessor.preprocess(
-    save_dataset_to_disk=True,
-    out_dataset_path=out_dataset_path
+  preprocessor = VivoicePreprocessor(
+    out_audio_path=out_audio_path, token=conf["huggingface_token"]
   )
+  preprocessor.run(save_to_dataset=True, out_dataset_path=out_dataset_path)
 
 
 if __name__ == "__main__":

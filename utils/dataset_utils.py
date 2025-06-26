@@ -1,11 +1,7 @@
 import pandas as pd
 import os
 
-from datasets import (
-  load_dataset,
-  Dataset,
-  Audio
-)
+from datasets import load_dataset, Dataset, Audio
 
 
 def load_vivoice(token: str) -> Dataset:
@@ -37,9 +33,7 @@ def filter_by_channel(ds: Dataset, channel: str) -> Dataset:
   Returns:
       Dataset: A dataset containing only entries of the filtered channel.
   """
-  return ds.filter(
-    lambda batch: [c == channel for c in batch["channel"]], batched=True
-  ).sort(column_names="text")
+  return ds.filter(lambda batch: [c == channel for c in batch["channel"]], batched=True)
 
 
 # TO-DO: Implement loading processed audio folder into dataset using metadata

@@ -8,6 +8,9 @@ from pyannote.audio import Pipeline
 from tqdm import tqdm
 from pathlib import Path
 
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
+
 SAMPLE_RATE = 24000
 CHUNK_LENGTH = 10
 N_SAMPLES = CHUNK_LENGTH * SAMPLE_RATE
@@ -81,9 +84,7 @@ def filter_by_diariazation(df: pd.DataFrame, dia_pipe: Pipeline) -> pd.DataFrame
     cur_audio = df.iloc[i]["audio"]
     waveform = torch.tensor(cur_audio["array"]).unsqueeze(0)
     diarization = dia_pipe({"waveform": waveform, "sample_rate": SAMPLE_RATE})
-    speakers = set(
-      speaker for _, _, speaker in diarization.itertracks(yield_label=True)
-    )
+    speakers = set(speaker for _, _, speaker in diarization.itertracks(yield_label=True))
     if len(speakers) > 1:
       idxs.append(i)
 
@@ -110,7 +111,7 @@ def save_processed_audio(df: pd.DataFrame, channel: str, out_audio_path: str):
   for audio in tqdm(df["audio"], desc="Saving audios to disk: "):
     out_file = Path(path / f"{audio['path']}")
     sf.write(out_file, audio["array"], samplerate=SAMPLE_RATE)
-      
+
   df["audio"] = [audio["path"] for audio in df["audio"]]
   df["file_name"] = df["audio"].copy()
   df[["file_name", "channel", "text"]].to_csv(path / "metadata.csv", index=False)
