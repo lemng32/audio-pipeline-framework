@@ -8,9 +8,6 @@ from pyannote.audio import Pipeline
 from tqdm import tqdm
 from pathlib import Path
 
-torch.backends.cuda.matmul.allow_tf32 = True
-torch.backends.cudnn.allow_tf32 = True
-
 SAMPLE_RATE = 24000
 CHUNK_LENGTH = 10
 N_SAMPLES = CHUNK_LENGTH * SAMPLE_RATE
