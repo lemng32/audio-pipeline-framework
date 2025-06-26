@@ -93,13 +93,13 @@ def filter_by_diariazation(df: pd.DataFrame, dia_pipe: Pipeline) -> pd.DataFrame
   return filtered_df
 
 
-def save_processed_audio(channel: str, df: pd.DataFrame, out_audio_path: str):
+def save_processed_audio(df: pd.DataFrame, channel: str, out_audio_path: str):
   """
   Save the merged audios to disk.
 
   Args:
-      channel (str): The channel name that is attributed to the audio.
       df (pd.DataFrame): The DataFrame that contains the merged audios.
+      channel (str): The channel name that is attributed to the audio.
       out_audio_path (str): The output path for the processed audio.
   """
 
