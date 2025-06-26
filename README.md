@@ -9,8 +9,8 @@
 
 ## Setting up
 1. Edit `config.json`
-    -- Paste your HuggingFace token into `huggingface-token` field.
-    -- *(Optional)* Set `out_audio_path` and `out_dataset_path` if you want custom output folders.
+    - Paste your HuggingFace token into `huggingface-token` field.
+    - *(Optional)* Set `out_audio_path` and `out_dataset_path` if you want custom output folders.
 2. Create and activate conda environment:
     ```
     conda env create -f environment.yml
