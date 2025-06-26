@@ -7,7 +7,6 @@ def main_process():
   """
   preprocessor = VivoicePreprocessor(out_audio_path=out_audio_path, token=conf["huggingface_token"])
   preprocessor.preprocess(
-    dataset_cache_dir="D:/Stuff/.cache",
     save_dataset_to_disk=True,
     out_dataset_path=out_dataset_path
   )

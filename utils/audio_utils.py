@@ -79,8 +79,8 @@ def filter_by_diariazation(df: pd.DataFrame, dia_pipe: Pipeline) -> pd.DataFrame
 
   for i in tqdm(range(len(df)), desc="Running diarization: "):
     cur_audio = df.iloc[i]["audio"]
-    cac = torch.tensor(cur_audio["array"]).unsqueeze(0)
-    diarization = dia_pipe({"waveform": cac, "sample_rate": SAMPLE_RATE})
+    waveform = torch.tensor(cur_audio["array"]).unsqueeze(0)
+    diarization = dia_pipe({"waveform": waveform, "sample_rate": SAMPLE_RATE})
     speakers = set(
       speaker for _, _, speaker in diarization.itertracks(yield_label=True)
     )
