@@ -1,26 +1,24 @@
 import json
-
-from vivoice_preprocess import vivoice_preprocess
-
+from vivoice_preprocess.preprocessor import VivoicePreprocessor
 
 def main_process():
-  vivoice_preprocess.preprocess(
-    out_audio_path=out_audio_path,
-    token=conf["huggingface_token"],
-    load_from_disk=True,
-    dataset_disk_path=conf["dataset_path"],
-    diarize_filter=True,
+  """
+  TO-DO: Add a description for what this do
+  """
+  preprocessor = VivoicePreprocessor(out_audio_path=out_audio_path, token=conf["huggingface_token"])
+  preprocessor.preprocess(
+    dataset_cache_dir="D:/Stuff/.cache",
     save_dataset_to_disk=True,
     out_dataset_path=out_dataset_path
   )
 
 
 if __name__ == "__main__":
-  with open("config.json", "r") as f:
+  with open("config_local.json", "r") as f:
     try:
       conf = json.load(f)
     except json.decoder.JSONDecodeError as _:
-      raise TypeError("sybau")
+      raise TypeError("Missing key in configuration file")
 
   # Use config's default path value if none is provided
   out_audio_path = (
