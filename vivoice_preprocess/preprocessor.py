@@ -12,7 +12,6 @@ from utils.audio_utils import (
 from utils.dataset_utils import (
   load_vivoice,
   create_and_save_dataset,
-  load_vivoice_from_disk,
   filter_by_channel,
 )
 
@@ -47,8 +46,6 @@ class VivoicePreprocessor:
 
   def preprocess(
     self,
-    load_dataset_from_disk: Optional[bool] = False,
-    dataset_disk_path: Optional[str] = None,
     save_dataset_to_disk: Optional[bool] = False,
     out_dataset_path: Optional[str] = None,
   ):
@@ -61,8 +58,6 @@ class VivoicePreprocessor:
       - [Optional]: Create a dataset to store the audios with its metadata and save it to disk.
 
     Args:
-        load_dataset_from_disk (Optional[bool], optional): Whether to load the dataset from local files. Defaults to False.
-        dataset_disk_path (Optional[str], optional): The path where the dataset files are stored, in .arrow format. Defaults to None.
         save_dataset_to_disk (Optional[bool], optional): Whether to save the dataset to disk. Defaults to False.
         out_dataset_path (Optional[str], optional): The output path for the created dataset. Defaults to None.
 
@@ -72,13 +67,8 @@ class VivoicePreprocessor:
     """
     if save_dataset_to_disk:
       out_dataset_path = resolve_path(out_dataset_path)
-
-    if load_dataset_from_disk:
-      if not dataset_disk_path:
-        raise FileNotFoundError(f"Dataset input path: {dataset_disk_path} not found")
-      ds = load_vivoice_from_disk(ds_path=dataset_disk_path)
-    else:
-      ds = load_vivoice(token=self.token)
+    
+    ds = load_vivoice(token=self.token)
 
     channels = ds.unique("channel")
     # Hard-coded channels

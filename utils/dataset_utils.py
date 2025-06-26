@@ -1,10 +1,8 @@
 import pandas as pd
 import os
 
-from pathlib import Path
 from datasets import (
   load_dataset,
-  concatenate_datasets,
   Dataset,
   Audio
 )
@@ -25,29 +23,6 @@ def load_vivoice(token: str) -> Dataset:
     split="train",
     token=token,
   )
-  return ds
-
-
-def load_vivoice_from_disk(ds_path: str) -> Dataset:
-  """
-  Load capleaf/viVoice using huggingface's Dataset from_file(). Make sure that the dataset is saved under .arrow format.
-
-  Args:
-      ds_path (str): The path of the saved 'capleaf/viVoice' dataset, .arrow format.
-
-  Raises:
-      FileNotFoundError: Dataset file path not found.
-
-  Returns:
-      Dataset: The loaded dataset.
-  """
-  if not Path(ds_path).is_dir():
-    raise FileNotFoundError(f"Dataset file path: {ds_path} not found")
-  files = [
-    f for f in Path(ds_path).iterdir()
-    if f.is_file() and f.name.startswith("parquet") and f.name.endswith("arrow")
-  ]
-  ds = concatenate_datasets([Dataset.from_file(f"{file}") for file in files])
   return ds
 
 
