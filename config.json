@@ -1,5 +1,4 @@
 {
-  "dataset_path": "< Define path to dataset if loading from disk >",
   "huggingface_token": "< Huggingface token >",
 
   "default_audio_path": "~/vivoice_preprocess/processed_audio",
