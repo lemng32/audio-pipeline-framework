@@ -1,4 +1,5 @@
 import json
+
 from vivoice_preprocess.preprocessor import VivoicePreprocessor
 
 
@@ -13,11 +14,11 @@ def main_process():
 
 
 if __name__ == "__main__":
-  with open("config_local.json", "r") as f:
+  with open("config.json", "r") as f:
     try:
       conf = json.load(f)
-    except json.decoder.JSONDecodeError as _:
-      raise TypeError("Missing key in configuration file")
+    except json.decoder.JSONDecodeError as e:
+      raise TypeError(e)
 
   # Use config's default path value if none is provided
   out_audio_path = (

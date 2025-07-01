@@ -53,7 +53,7 @@ class VivoicePreprocessor:
       - [Optional]: Create a dataset to store the audios with its metadata and save it to disk.
 
     Args:
-        save_dataset_to_disk (Optional[bool], optional): Whether to save the dataset to disk. Defaults to False.
+        save_to_dataset (Optional[bool], optional): Whether to save the dataset to disk. Defaults to False.
         out_dataset_path (Optional[str], optional): The output path for the created dataset. Defaults to None.
 
     Raises:
@@ -67,7 +67,8 @@ class VivoicePreprocessor:
 
     channels = ds.unique("channel")
     # Hard-coded channels for quick testing
-    tmp = [channels[channels.index("@truyenhinhlaocai")]]
+    # tmp = [channels[channels.index("@truyenhinhlaocai")]]
+    tmp = [channels[channels.index("@LamDongTV1")]]
     for channel in tqdm(tmp, desc="Processing current channel: "):
       cur_channel_ds = filter_by_channel(ds=ds, channel=channel)
       audio_df = merge_audio(ds=cur_channel_ds)
@@ -83,5 +84,5 @@ class VivoicePreprocessor:
           df=audio_df,
           channel=channel,
           out_dataset_path=out_dataset_path,
-          out_audio_path=self.out_audio_path,
+          saved_audio_path=self.out_audio_path,
         )
