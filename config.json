@@ -1,0 +1,9 @@
+{
+  "huggingface_token": "<-- Replace with your HuggingFace token -->",
+
+  "default_audio_path": "~/vivoice_preprocess/processed_audio",
+  "default_dataset_path": "~/vivoice_preprocess/processed_dataset",
+  
+  "out_audio_path": "",
+  "out_dataset_path": ""
+}

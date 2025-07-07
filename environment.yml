@@ -1,0 +1,21 @@
+name: AudioPipelineFramework
+channels:
+  - nvidia
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pip
+  - pytorch
+  - pytorch-cuda
+  - torchaudio
+  - torchvision
+  - ipykernel
+  - pip:
+      - datasets
+      - librosa
+      - pandas
+      - pyannote.audio
+      - soundfile
+      - tqdm
