@@ -1,19 +1,20 @@
+from typing import Iterator
 import pandas as pd
 
 from datasets import load_dataset, Dataset, Audio
 from pathlib import Path
-from utils.utils import change_working_dir
+from utils.file_utils import change_working_dir
 
 
 def load_vivoice(token: str) -> Dataset:
   """
-  Load capleaf/viVoice using huggingface's Dataset through the Hub.
+  Load the capleaf/viVoice dataset from the Hugging Face Hub.
 
   Args:
-      token (str): Huggingface token
+    token (str): Hugging Face token for authentication.
 
   Returns:
-      Dataset: The loaded dataset.
+    Dataset: The loaded training split of the dataset.
   """
   ds = load_dataset(
     "capleaf/viVoice",
@@ -25,45 +26,62 @@ def load_vivoice(token: str) -> Dataset:
 
 def filter_by_channel(ds: Dataset, channel: str) -> Dataset:
   """
-  Filters the dataset by the specified channel.
+  Filters a dataset to include only rows with a specific channel value.
 
   Args:
-      ds (Dataset): The loaded dataset.
-      channel (str): The channel to filter by.
+    ds (Dataset): The Hugging Face dataset to filter.
+    channel (str): The target channel name.
 
   Returns:
-      Dataset: A dataset containing only entries of the filtered channel.
+    Dataset: A filtered dataset containing only rows with the given channel.
   """
   return ds.filter(lambda batch: [c == channel for c in batch["channel"]], batched=True)
 
 
-# TO-DO: Implement loading processed audio folder into dataset using metadata
-def load_by_channel():
-  return -1
-
-
-def create_and_save_dataset(
+def save_dataset(
   df: pd.DataFrame,
-  channel: str,
   out_dataset_path: Path,
   saved_audio_path: Path,
-):
+  sample_rate: int = 24000,
+  shard_size: str = "500MB",
+) -> None:
   """
-  Create a dataset from the provided dataframe and save it to disk.
-
-  Note: Assumes that audio files referenced in the dataframe are already saved to disk.
+  Create and save a Hugging Face Dataset from a DataFrame.
 
   Args:
-      df (pd.DataFrame): The provided dataframe.
-      channel (str): The channel name that is attributed to the audio
-      out_dataset_path (Path): The output path for the created dataset.
-      saved_audio_path (Path): The path oif the saved audios.
+    df (pd.DataFrame): A DataFrame with at least a 'file_name' column.
+    channel (str): The channel label used to determine subdirectory.
+    out_dataset_path (Path): Root directory to save the dataset.
+    saved_audio_path (Path): Directory where audio files are stored.
+    sample_rate (int): Expected sample rate of the audio files. Defaults to 24000
+    shard_size (str): Max size per saved dataset shard. Defaults to 500MB
   """
-  out_dataset_path = out_dataset_path / channel
-  saved_audio_path = saved_audio_path / channel
 
   with (change_working_dir(saved_audio_path)):
-    ds = Dataset.from_pandas(
-      df[["channel", "text", "audio"]], preserve_index=False
-    ).cast_column("audio", Audio())
-    ds.save_to_disk(dataset_path=out_dataset_path, max_shard_size="500MB")
+    ds = Dataset.from_pandas(df, preserve_index=False)
+    ds = ds.rename_column(original_column_name="file_name", new_column_name="audio")
+    ds = ds.cast_column("audio", Audio(sampling_rate=sample_rate))
+    ds.save_to_disk(dataset_path=out_dataset_path, max_shard_size=shard_size)
+
+
+def slice_dataset(ds: Dataset, sample_rate: int = 24000, chunk_length: int = 10) -> Iterator:
+  """
+  Yields slices of the dataset, where each slice contains ~chunk_length seconds of audio.
+
+  Args:
+    ds (Dataset): Hugging Face dataset with audio column.
+    sample_rate (int): Sample rate of the audio. Defaults to 24000
+    chunk_length (int): Desired duration (in seconds) for each slice. Defaults to 10 seconds.
+
+  Yields:
+    Dataset: A slice of the original dataset.
+  """
+  length_window_sum = 0
+  i = 0
+
+  for j, row in enumerate(ds):
+    length_window_sum += len(row["audio"]["array"])
+    if length_window_sum >= sample_rate * chunk_length:
+      yield ds[i:j+1]
+      i = j + 1
+      length_window_sum = 0

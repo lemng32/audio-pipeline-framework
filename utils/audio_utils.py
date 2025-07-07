@@ -1,105 +1,40 @@
-import pandas as pd
 import numpy as np
-import torch
 import soundfile as sf
 
-from datasets import Dataset
-from pyannote.audio import Pipeline
-from tqdm import tqdm
-from pathlib import Path
 
-
-def merge_audio(ds: Dataset, sample_rate: int = 24000, chunk_length: int = 10) -> pd.DataFrame:
+def merge_audio(
+  audios: list[np.ndarray],
+  sample_rate: int = 24000,
+  pad_width: float = 0.5
+) -> np.ndarray:
   """
-  Merge short audios (given in numpy.array) into one longer audio.
+  Merge multiple audio arrays into one, padding each with silence.
 
   Args:
-      ds (Dataset): The current dataset.
-      sample_rate (int): The sample rate of the audios
-      chunk_length (int): The length to merge the audio to (in seconds)
+    audios (list[np.ndarray]): List of 1D audio arrays.
+    sample_rate (int): Sample rate of the audio. Defaults to 24000.
+    pad_width (float): Seconds of silence to pad between audio chunks. Defaults to 0.5 seconds.
 
   Returns:
-      pd.DataFrame: A pandas Dataframe of the same structure, with concatenated audios and transcipts.
+    np.ndarray: Concatenated audio array.
   """
-  arrays_to_concat = []
-  texts_to_concat = []
-  shape_sum = 0
-  df = pd.DataFrame(columns=["channel", "text", "audio"])
-
-  for row in tqdm(ds, desc="Merging audio: "):
-    array = np.pad(row["audio"]["array"], (0, int(sample_rate * 0.5))).astype(np.float32)
-
-    arrays_to_concat.append(array)
-    texts_to_concat.append(row["text"])
-    shape_sum += array.shape[0]
-
-    if shape_sum >= sample_rate * chunk_length:
-      df.loc[len(df)] = {
-        "channel": row["channel"],
-        "text": " ".join(texts_to_concat),
-        "audio": {
-          "path": row["audio"]["path"],
-          "array": np.concatenate(arrays_to_concat),
-          "sampling_rate": row["audio"]["sampling_rate"],
-        }
-      }
-      shape_sum = 0
-      arrays_to_concat.clear()
-      texts_to_concat.clear()
-  
-  if arrays_to_concat:
-    print("cac")
-
-  return df
+  merged_audios = []
+  for audio in audios:
+    merged_audios.append(
+      np.pad(
+        array=audio, pad_width=(0, int(sample_rate * pad_width))
+      ).astype(np.float32)
+    )
+  return np.concatenate(merged_audios)
 
 
-def filter_by_diariazation(df: pd.DataFrame, dia_pipe: Pipeline, sample_rate: int = 24000) -> pd.DataFrame:
+def save_audio(out_file: str, audio: np.ndarray, sample_rate: int = 24000) -> None:
   """
-  Remove any audios that have more than 1 potential speaker.
+  Save a NumPy audio array to disk as a WAV file.
 
   Args:
-      df (pd.DataFrame): The provided dataframe.
-      dia_pipe (Pipeline): The diarazation pipeline instance.
-      sample_rate (int): The sample rate of the audio
-
-  Returns:
-      pd.DataFrame: The filtered dataframe.
+    out_file (Path): Full path to save the file.
+    audio (np.ndarray): 1D audio array.
+    sample_rate (int): Sample rate of the audio. Defaults to 24000.
   """
-  idxs = []
-
-  for i in tqdm(range(len(df)), desc="Running diarization: "):
-    cur_audio = df.iloc[i]["audio"]
-    waveform = torch.tensor(cur_audio["array"]).unsqueeze(0)
-    diarization = dia_pipe({"waveform": waveform, "sample_rate": sample_rate})
-    speakers = set(speaker for _, _, speaker in diarization.itertracks(yield_label=True))
-    if len(speakers) > 1:
-      idxs.append(i)
-
-  filtered_df = df.drop(idxs)
-  filtered_df.reset_index(drop=True, inplace=True)
-
-  return filtered_df
-
-
-def save_processed_audio(df: pd.DataFrame, channel: str, out_audio_path: Path, sample_rate: int = 24000):
-  """
-  Save the merged audios to disk.
-
-  Args:
-      df (pd.DataFrame): The DataFrame that contains the merged audios.
-      channel (str): The channel name that is attributed to the audio.
-      out_audio_path (Path): The output path for the processed audio.
-      sample_rate (int): The sample rate of the audio
-  """
-
-  path = out_audio_path / channel
-  if not path.is_dir():
-    path.mkdir(parents=True, exist_ok=True)
-
-  for audio in tqdm(df["audio"], desc="Saving audios to disk: "):
-    out_file = path / f"{audio['path']}"
-    sf.write(out_file, audio["array"], samplerate=sample_rate)
-
-  df["audio"] = [audio["path"] for audio in df["audio"]]
-  df["file_name"] = df["audio"].copy()
-  df[["file_name", "channel", "text"]].to_csv(path / "metadata.csv", index=False)
+  sf.write(file=out_file, data=audio, samplerate=sample_rate)
