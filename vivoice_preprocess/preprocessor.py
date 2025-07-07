@@ -124,14 +124,14 @@ class VivoicePreprocessor:
     ds = load_vivoice(token=self.token)
     channels = ds.unique("channel")
 
-    """ Channels are current hard-coded for fast testing """
+    # Channels are current hard-coded for fast testing
     selected_channels = [channels[channels.index("@khalid_dinh")]]
     for channel in tqdm(selected_channels, desc="Processing channel: "):
       channel_audio_path = resolve_path(self.out_audio_path / channel)
       cur_channel_ds = filter_by_channel(ds=ds, channel=channel)
       splits = slice_dataset(ds=cur_channel_ds)
 
-      """ Processing split to metadata """
+      # Processing split
       channel_metadata = self._process_channel_split(
         splits=splits,
         channel=channel,
@@ -139,7 +139,7 @@ class VivoicePreprocessor:
       )
       channel_metadata.to_csv(path_or_buf=channel_audio_path / "metadata.csv", index=False)
 
-      """ Save the metadata to a HF dataset if needed """
+      # Save the metadata to a HF dataset if needed
       self._save_metadata_to_dataset(
         skip=False if save_to_dataset else True,
         metadata=channel_metadata,
