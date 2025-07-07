@@ -3,7 +3,7 @@ import pandas as pd
 
 from datasets import load_dataset, Dataset, Audio
 from pathlib import Path
-from utils.file_utils import resolve_path, change_working_dir
+from utils.file_utils import change_working_dir
 
 
 def load_vivoice(token: str) -> Dataset:
@@ -38,9 +38,8 @@ def filter_by_channel(ds: Dataset, channel: str) -> Dataset:
   return ds.filter(lambda batch: [c == channel for c in batch["channel"]], batched=True)
 
 
-def create_and_save_dataset(
+def save_dataset(
   df: pd.DataFrame,
-  channel: str,
   out_dataset_path: Path,
   saved_audio_path: Path,
   sample_rate: int = 24000,
@@ -57,7 +56,6 @@ def create_and_save_dataset(
     sample_rate (int): Expected sample rate of the audio files. Defaults to 24000
     shard_size (str): Max size per saved dataset shard. Defaults to 500MB
   """
-  out_dataset_path = resolve_path(out_dataset_path / channel)
 
   with (change_working_dir(saved_audio_path)):
     ds = Dataset.from_pandas(df, preserve_index=False)
