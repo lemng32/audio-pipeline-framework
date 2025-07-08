@@ -1,5 +1,6 @@
 import torch
 import pandas as pd
+import numpy as np
 
 from pathlib import Path
 from pyannote.audio import Pipeline
@@ -13,7 +14,8 @@ from utils.dataset_utils import (
   slice_dataset,
 )
 from utils.logger import get_logger
-from vivoice_preprocess.audio_handler import VivoiceAudioHandler
+from utils.audio_utils import merge_audio, save_audio
+from vivoice_preprocess.whipser_asr import FasterWhisperASR
 
 
 class VivoicePreprocessor:
@@ -28,7 +30,7 @@ class VivoicePreprocessor:
     self.out_dataset_path = None
     self.token = token
     self.pipe = self._create_diarization_pipe(token) if use_diarization else None
-    self.audio_handler = VivoiceAudioHandler()
+    self.whisper_model = FasterWhisperASR()
     self.logger = get_logger(__name__)
 
   def _create_diarization_pipe(self, token: str) -> Pipeline:
@@ -46,12 +48,32 @@ class VivoicePreprocessor:
     )
     pipe.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     return pipe
+  
+  def _get_num_speakers(self, audio: np.ndarray, sample_rate: int = 24000) -> int:
+    """
+    Estimate the number of unique speakers in an audio segment using pyannote.
+
+    Args:
+      audio (np.ndarray): 1D audio array.
+      dia_pipe (Pipeline): Preloaded pyannote pipeline.
+      sample_rate (int): Sample rate of the audio. Defaults to 24000.
+
+    Returns:
+      int: Number of unique speakers detected.
+    """
+    waveform = torch.tensor(data=audio).unsqueeze(0)
+    diarization = self.pipe({"waveform": waveform, "sample_rate": sample_rate})
+    speakers = set(speaker for _, _, speaker in diarization.itertracks(yield_label=True))
+    return len(speakers)
 
   def _process_channel_split(
     self, splits: Iterator, channel: str, out_path: Path
   ) -> pd.DataFrame:
     """
     Process dataset splits for a specific channel.
+    1. Merge short audio segments into one longer one
+    2. Diarize the merged audio and remove audios with more than 1 potential speaker
+    3. Save the processed audio with a metadata file
 
     Args:
         splits (Iterator): Iterator of dataset splits.
@@ -63,22 +85,26 @@ class VivoicePreprocessor:
     """
     metadata = pd.DataFrame(columns=["file_name", "channel", "text"])
 
-    for split in tqdm(splits, desc="Processing channel splits: "):
-      file_name = self.audio_handler(
+    for i, split in tqdm(enumerate(splits, start=1), desc="Processing channel splits: "):
+      file_name = f"{channel}_{i:05}.wav"
+      merged_audio = merge_audio(
         audios=[audio["array"] for audio in split["audio"]],
-        sample_rate=split["audio"][0]["sampling_rate"],
-        channel=channel,
-        out_path=out_path,
-        pyannote_pipe=self.pipe,
+        sample_rate=split["audio"][0]["sampling_rate"]
       )
-      if file_name:
-        metadata.loc[len(metadata)] = {
-          "file_name": file_name,
-          "channel": channel,
-          "text": split["text"],
-        }
+      
+      if self.pipe:
+        num_speakers = self._get_num_speakers(audio=merged_audio)
+        if num_speakers > 1:
+          return None
+      
+      save_audio(audio=merge_audio, out_file=out_path / file_name)
+      metadata.loc[len(metadata)] = {
+        "file_name": file_name,
+        "channel": channel,
+        "text": split["text"],
+      }
     return metadata
-
+  
   def _save_metadata_to_dataset(
     self, skip: bool, metadata: pd.DataFrame, audio_path: Path
   ) -> None:
@@ -109,9 +135,7 @@ class VivoicePreprocessor:
     """
     Run the processing pipeline:
     1. Load the dataset capleaf/viVoice
-    2. Merge short audio segments into one longer one
-    3. Diarize the merged audio and remove audios with more than 1 potential speaker
-    4. Save the processed audio with a metadata file
+    
     3. [Optional]: Create and save a huggingface dataset based on the metadata
 
     Args:
@@ -128,15 +152,17 @@ class VivoicePreprocessor:
     selected_channels = [channels[channels.index("@khalid_dinh")]]
     for channel in tqdm(selected_channels, desc="Processing channel: "):
       channel_audio_path = resolve_path(self.out_audio_path / channel)
+
       cur_channel_ds = filter_by_channel(ds=ds, channel=channel)
       splits = slice_dataset(ds=cur_channel_ds)
-
+  
       # Processing split
       channel_metadata = self._process_channel_split(
         splits=splits,
         channel=channel,
         out_path=channel_audio_path
       )
+
       channel_metadata.to_csv(path_or_buf=channel_audio_path / "metadata.csv", index=False)
 
       # Save the metadata to a HF dataset if needed
