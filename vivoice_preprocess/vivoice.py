@@ -9,9 +9,7 @@ from utils.logger import get_logger
 from vivoice_preprocess.preprocessor import PreprocessorPipeline
 
 class VivoicePreprocessor:
-  def __init__(
-    self, out_audio_path: str, token: str, use_diarization: bool = True
-  ) -> None:
+  def __init__(self, out_audio_path: str, token: str) -> None:
     self.out_audio_path = resolve_path(out_audio_path)
     self.out_dataset_path = None
     self.token = token
@@ -49,7 +47,7 @@ class VivoicePreprocessor:
         if len(speakers) > 1:
           continue
         
-        segments, _ = self.pipeline.whisper_asr(res["audio"])
+        segments = self.pipeline.whisper_asr(res["audio"])
         segments_text = [segment.text for segment in segments]
 
         wer = self.metric.compute(predictions=[" ".join(segments_text)], references=[" ".join(texts)])

@@ -1,4 +1,4 @@
-from vivoice_preprocess.preprocessor import VivoicePreprocessor
+from vivoice_preprocess.vivoice import VivoicePreprocessor
 from utils.config_loader import ConfigLoader
 
 
@@ -10,11 +10,11 @@ def main_process(config: dict):
     out_audio_path=config["out_audio_path"],
     token=config["huggingface_token"]
   )
-  preprocessor.run(save_to_dataset=True, out_dataset_path=config["out_dataset_path"])
+  preprocessor.run()
 
 
 if __name__ == "__main__":
-  loader = ConfigLoader(path="config.json")
+  loader = ConfigLoader(path="config_local.json")
   conf = loader.config
   
   main_process(conf)

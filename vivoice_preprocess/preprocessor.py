@@ -9,7 +9,7 @@ from pyannote.audio import Pipeline
 # from typing import Iterator, Optional
 # from utils.file_utils import resolve_path
 # from utils.logger import get_logger
-# from vivoice_preprocess.whipser_asr import FasterWhisperASR
+from vivoice_preprocess.whipser_asr import FasterWhisperASR
 
 class PreprocessorPipeline:
 
@@ -20,7 +20,7 @@ class PreprocessorPipeline:
     )
     self.pipe.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     self.audio_count = 0
-    #self.model = FasterWhisperASR(model_size="turbo")
+    self.model = FasterWhisperASR(model_size="turbo")
 
   def __call__(self, audio, sample_rate):
     # Step 1: Standardization
