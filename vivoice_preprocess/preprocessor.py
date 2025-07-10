@@ -1,178 +1,94 @@
-import torch
 import pandas as pd
 import numpy as np
+import torch
 
+from pydub import AudioSegment
 from pathlib import Path
 from pyannote.audio import Pipeline
-from tqdm import tqdm
-from typing import Iterator, Optional
-from utils.file_utils import resolve_path
-from utils.dataset_utils import (
-  load_vivoice,
-  save_dataset,
-  filter_by_channel,
-  slice_dataset,
-)
-from utils.logger import get_logger
-from utils.audio_utils import merge_audio, save_audio
-from vivoice_preprocess.whipser_asr import FasterWhisperASR
+# from tqdm import tqdm
+# from typing import Iterator, Optional
+# from utils.file_utils import resolve_path
+# from utils.logger import get_logger
+# from vivoice_preprocess.whipser_asr import FasterWhisperASR
 
+class PreprocessorPipeline:
 
-class VivoicePreprocessor:
-  """
-  Preprocess the capleaf/viVoice dataset by slicing, optional diarization, and saving processed data.
-  """
-
-  def __init__(
-    self, out_audio_path: str, token: str, use_diarization: bool = True
-  ) -> None:
-    self.out_audio_path = resolve_path(out_audio_path)
-    self.out_dataset_path = None
-    self.token = token
-    self.pipe = self._create_diarization_pipe(token) if use_diarization else None
-    self.whisper_model = FasterWhisperASR()
-    self.logger = get_logger(__name__)
-
-  def _create_diarization_pipe(self, token: str) -> Pipeline:
-    """
-    Initialize and return a pyannote speaker diarization pipeline.
-    Args:
-        token (str): Hugging Face auth token
-
-    Returns:
-        Pipeline: Pyannote diarization pipeline
-    """
-    pipe = Pipeline.from_pretrained(
+  def __init__(self, token):
+    self.pipe = Pipeline.from_pretrained(
       "pyannote/speaker-diarization-3.1",
       use_auth_token=token,
     )
-    pipe.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-    return pipe
-  
-  def _get_num_speakers(self, audio: np.ndarray, sample_rate: int = 24000) -> int:
-    """
-    Estimate the number of unique speakers in an audio segment using pyannote.
+    self.pipe.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    self.audio_count = 0
+    #self.model = FasterWhisperASR(model_size="turbo")
 
-    Args:
-      audio (np.ndarray): 1D audio array.
-      dia_pipe (Pipeline): Preloaded pyannote pipeline.
-      sample_rate (int): Sample rate of the audio. Defaults to 24000.
+  def __call__(self, audio, sample_rate):
+    # Step 1: Standardization
+    audio = self.standardization(audio=audio, sample_rate=sample_rate)
+    # Step 2: Diarization
+    diarize_df = self.diarization(audio)
+    # TO-DO: ASR
 
-    Returns:
-      int: Number of unique speakers detected.
-    """
-    waveform = torch.tensor(data=audio).unsqueeze(0)
-    diarization = self.pipe({"waveform": waveform, "sample_rate": sample_rate})
-    speakers = set(speaker for _, _, speaker in diarization.itertracks(yield_label=True))
-    return len(speakers)
+    # TO-DO: Modify return type for general use. Currently coded to be used for vivoice.
+    return {
+      "audio": audio,
+      "diarize_df": diarize_df
+    }
 
-  def _process_channel_split(
-    self, splits: Iterator, channel: str, out_path: Path
-  ) -> pd.DataFrame:
-    """
-    Process dataset splits for a specific channel.
-    1. Merge short audio segments into one longer one
-    2. Diarize the merged audio and remove audios with more than 1 potential speaker
-    3. Save the processed audio with a metadata file
-
-    Args:
-        splits (Iterator): Iterator of dataset splits.
-        channel (str): Current channel name.
-        out_path (Path): Output path for saving audio files.
-
-    Returns:
-        pd.DataFrame: Metadata DataFrame with file_name, channel, and text.
-    """
-    metadata = pd.DataFrame(columns=["file_name", "channel", "text"])
-
-    for i, split in tqdm(enumerate(splits, start=1), desc="Processing channel splits: "):
-      file_name = f"{channel}_{i:05}.wav"
-      merged_audio = merge_audio(
-        audios=[audio["array"] for audio in split["audio"]],
-        sample_rate=split["audio"][0]["sampling_rate"]
-      )
-      
-      if self.pipe:
-        num_speakers = self._get_num_speakers(audio=merged_audio)
-        if num_speakers > 1:
-          return None
-      
-      save_audio(audio=merge_audio, out_file=out_path / file_name)
-      metadata.loc[len(metadata)] = {
-        "file_name": file_name,
-        "channel": channel,
-        "text": split["text"],
-      }
-    return metadata
-  
-  def _save_metadata_to_dataset(
-    self, skip: bool, metadata: pd.DataFrame, audio_path: Path
-  ) -> None:
-    """
-    Optionally save the metadata to Hugging Face dataset format.
-
-    Args:
-        skip (bool): Whether to skip saving.
-        metadata (pd.DataFrame): Metadata to save.
-        audio_path (Path): Path where the audio files are stored.
-    """
-    if skip:
-      self.logger.info("Skipping saving to dataset.")
+  # Step 1: Standardization
+  def standardization(self, audio, sample_rate: int):
+ 
+    if isinstance(audio, np.ndarray):
+      waveform = audio
+      name = f"audio_{self.audio_count:05}"
+      self.audio_count += 1
     else:
-      self.logger.info(f"Saving dataset to: {self.out_dataset_path}.")
-      save_dataset(
-        df=metadata,
-        out_dataset_path=self.out_dataset_path,
-        saved_audio_path=audio_path,
-      )
-      self.logger.info("Dataset saved successfully.")
+      if isinstance(audio, Path):
+        name = audio.name
+        audio = AudioSegment.from_file(file=audio, format="wav")
+      elif isinstance(audio, AudioSegment):
+        name = f"audio_{self.audio_count:05}"
+        self.audio_count += 1
+      else:
+        print("cac")
 
-  def run(
-    self,
-    save_to_dataset: Optional[bool] = False,
-    out_dataset_path: Optional[str] = None,
-  ) -> None:
-    """
-    Run the processing pipeline:
-    1. Load the dataset capleaf/viVoice
-    
-    3. [Optional]: Create and save a huggingface dataset based on the metadata
+      audio = audio.set_frame_rate(sample_rate)
+      audio = audio.set_sample_width(2)
+      audio = audio.set_channels(1)
 
-    Args:
-        save_to_dataset (Optional[bool], optional): Whether to save audio as a Hugging Face dataset. Defaults to False.
-        out_dataset_path (Optional[str], optional): Where to store the saved dataset if enabled. Defaults to None.
-    """
-    if save_to_dataset:
-      self.out_dataset_path = resolve_path(out_dataset_path)
+      target_dBFS = -20
+      gain = target_dBFS - audio.dBFS
 
-    ds = load_vivoice(token=self.token)
-    channels = ds.unique("channel")
+      normalized_audio = audio.apply_gain(min(max(gain, -3), 3))
 
-    # Channels are current hard-coded for fast testing
-    selected_channels = [channels[channels.index("@khalid_dinh")]]
-    for channel in tqdm(selected_channels, desc="Processing channel: "):
-      channel_audio_path = resolve_path(self.out_audio_path / channel)
+      waveform = np.array(normalized_audio.get_array_of_samples(), dtype=np.float32)
 
-      cur_channel_ds = filter_by_channel(ds=ds, channel=channel)
-      splits = slice_dataset(ds=cur_channel_ds)
+    max_amplitude = np.max(np.abs(waveform))
+    waveform /= max_amplitude
+
+    return {
+      "waveform": waveform,
+      "name": name,
+      "sample_rate": sample_rate
+    }
+
+  # Step 2: Speaker diarization
+  def diarization(self, audio):
+    annotation = self.pipe(
+      {
+        "waveform": torch.tensor(audio["waveform"]).unsqueeze(0),
+        "sample_rate": audio["sample_rate"],
+        "channel": 0
+      }
+    )
+    diarize_df = pd.DataFrame(
+      data=[(segment, track, label) for segment, track, label in annotation.itertracks(yield_label=True)],
+      columns=["segment", "track", "speaker"]
+    )
+    diarize_df["start"] = diarize_df["segment"].apply(lambda x: x.start)
+    diarize_df["end"] = diarize_df["segment"].apply(lambda x: x.end)
+    return diarize_df
   
-      # Processing split
-      channel_metadata = self._process_channel_split(
-        splits=splits,
-        channel=channel,
-        out_path=channel_audio_path
-      )
-
-      channel_metadata.to_csv(path_or_buf=channel_audio_path / "metadata.csv", index=False)
-
-      # Save the metadata to a HF dataset if needed
-      self._save_metadata_to_dataset(
-        skip=False if save_to_dataset else True,
-        metadata=channel_metadata,
-        audio_path=channel_audio_path
-      )
-
-      self.logger.info(
-        f"Saved {len(channel_metadata['file_name'])} audio files at {channel_audio_path}"
-      )
-      self.logger.info(f"Finished processing channel: {channel}")
+  # Step 3: Whipser ASR
+  def whisper_asr(self, audio):
+    return self.model.transcribe_audio(audio["waveform"])
