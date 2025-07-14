@@ -11,11 +11,13 @@ dependencies:
   - pytorch-cuda
   - torchaudio
   - torchvision
+  - ffmpeg
   - ipykernel
   - pip:
-      - datasets
-      - librosa
+      - datasets[audio]
+      - torchcodec
+      - pydub
+      - faster-whisper
       - pandas
       - pyannote.audio
-      - soundfile
       - tqdm
