@@ -24,7 +24,7 @@ def load_vivoice(token: str) -> Dataset:
   return ds
 
 
-def filter_by_channel(ds: Dataset, channel: str) -> Dataset:
+def filter_by_channel(dataset: Dataset) -> dict:
   """
   Filters a dataset to include only rows with a specific channel value.
 
@@ -35,7 +35,11 @@ def filter_by_channel(ds: Dataset, channel: str) -> Dataset:
   Returns:
     Dataset: A filtered dataset containing only rows with the given channel.
   """
-  return ds.filter(lambda batch: [c == channel for c in batch["channel"]], batched=True)
+  channels = dataset.unique(column="channel")
+  index_dict = { channel: [] for channel in channels }
+  for i, channel in enumerate(dataset["channel"]):
+    index_dict[channel].append(i)
+  return index_dict
 
 
 def save_dataset(
@@ -64,7 +68,7 @@ def save_dataset(
     ds.save_to_disk(dataset_path=out_dataset_path, max_shard_size=shard_size)
 
 
-def slice_dataset(ds: Dataset, sample_rate: int = 24000, chunk_length: int = 10) -> Iterator:
+def slice_dataset(dataset: Dataset, sample_rate: int = 24000, chunk_length: int = 10) -> Iterator:
   """
   Yields slices of the dataset, where each slice contains ~chunk_length seconds of audio.
 
@@ -79,9 +83,9 @@ def slice_dataset(ds: Dataset, sample_rate: int = 24000, chunk_length: int = 10)
   length_window_sum = 0
   i = 0
 
-  for j, row in enumerate(ds):
+  for j, row in enumerate(dataset):
     length_window_sum += len(row["audio"]["array"])
     if length_window_sum >= sample_rate * chunk_length:
-      yield ds[i:j+1]
+      yield dataset[i:j+1]
       i = j + 1
       length_window_sum = 0
