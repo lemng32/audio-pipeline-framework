@@ -2,7 +2,7 @@ import torch
 
 from pyannote.audio import Pipeline
 from vivoice_preprocess.vivoice import VivoicePreprocessor
-from vivoice_preprocess.whipser_asr import FasterWhisperASR
+from vivoice_preprocess.whisper_asr import FasterWhisperASR
 from utils.config_loader import ConfigLoader
 
 
@@ -20,7 +20,7 @@ def main_process():
 
 
 if __name__ == "__main__":
-  loader = ConfigLoader(path="config_local.json")
+  loader = ConfigLoader(path="config.json")
   conf = loader.config
 
   dia_pipe = pipe = Pipeline.from_pretrained(
