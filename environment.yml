@@ -1,11 +1,11 @@
-name: AudioPipelineFramework
+name: apf
 channels:
   - nvidia
   - pytorch
   - conda-forge
   - defaults
 dependencies:
-  - python=3.12
+  - python=3.9
   - pip
   - pytorch
   - pytorch-cuda
@@ -21,3 +21,6 @@ dependencies:
       - pandas
       - pyannote.audio
       - tqdm
+      - underthesea
+      - evaluate
+      - jiwer
