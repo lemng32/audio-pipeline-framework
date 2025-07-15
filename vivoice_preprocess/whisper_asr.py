@@ -1,24 +1,45 @@
 import torch
+import numpy as np
 
-from typing import Optional, Iterable
+from typing import Optional, Union
 from utils.logger import get_logger
 from faster_whisper import WhisperModel, BatchedInferencePipeline
 
 
 class FasterWhisperASR:
+  """
+  Wrapper class for WhisperModel from faster-whisper
+  """
   def __init__(
     self,
     model_size: str = "large-v3",
     batch: bool = False,
-    compute_type: str = "float16"
-  ):
-    self.logger = get_logger(__name__)
-    self.model = self.load_model(model_size=model_size, batch=batch, compute_type=compute_type)
+    compute_type: str = "float16",
+  ) -> None:
+    """
+    Initialize the model instance
 
-  def get_gpu(self):
+    Args:
+      model_size (str, optional): The whisper model to use. Defaults to "large-v3".
+      batch (bool, optional): Whether to enable batch inference. Defaults to False.
+      compute_type (str, optional): Data precision for inference. Defaults to "float16".
+    """
+    self.logger = get_logger(__name__)
+    self.model = self.load_model(
+      model_size=model_size, batch=batch, compute_type=compute_type
+    )
+
+  def get_gpu(self) -> tuple:
+    """
+    Detect available GPU devices.
+
+    Returns:
+      tuple: (device, device_index)
+        - device (str): "cuda" if GPU is available, otherwise "cpu".
+        - device_index (int or list[int]): GPU indices or 0 if using CPU.
+    """
     device = "cpu"
     device_index = 0
-
     if torch.cuda.is_available():
       self.logger.info("CUDA is available.")
       if torch.backends.cudnn.is_available():
@@ -33,29 +54,54 @@ class FasterWhisperASR:
 
     return (device, device_index)
 
-  def load_model(self, model_size: str, batch: bool, compute_type: str):
+  def load_model(
+    self, model_size: str, batch: bool, compute_type: str
+  ) -> Union[WhisperModel, BatchedInferencePipeline]:
+    """
+    Load the whisper model. If batch inference is enabled, return the wrapper batched pipeline
+
+    Args:
+      model_size (str): The whisper model to use.
+      batch (bool): Whether to enable batch inference.
+      compute_type (str): Data precision for inference.
+
+    Returns:
+      object: Loaded model instance.
+    """
     device, device_index = self.get_gpu()
     model = WhisperModel(
-      model_size,
-      device=device,
-      device_index=device_index,
-      compute_type=compute_type
+      model_size, device=device, device_index=device_index, compute_type=compute_type
     )
     if batch:
       self.logger.info("Using batched model")
       model = BatchedInferencePipeline(model)
     return model
-  
+
   def transcribe_audio(
     self,
-    audio,
-    beam_size = 5,
-    condition_on_previous_text = True,
-    without_timestamps = False,
+    audio: np.ndarray,
+    beam_size: int = 5,
+    condition_on_previous_text: bool = True,
+    without_timestamps: bool = False,
     vad_filter: bool = True,
     language: Optional[str] = None,
     batch_size: Optional[int] = None,
-  ) -> Iterable:
+  ) -> tuple:
+    """
+    Transcribe audio given in waveform
+
+    Args:
+      audio (np.ndarray): 1D NumPy array of float32.
+      beam_size (int): Beam search width. Default is 5.
+      condition_on_previous_text (bool): Enable text conditioning between segments.
+      without_timestamps (bool): If True, disables timestamp prediction.
+      vad_filter (bool): Whether to apply voice activity detection filter.
+      language (Optional[str]): Manually specify language (e.g., "en").
+      batch_size (Optional[int]): Size of batches when using batched inference.
+
+    Returns:
+      tuple: The audio segments and transcription info
+    """
     options = {
       "audio": audio,
       "beam_size": beam_size,
@@ -65,17 +111,20 @@ class FasterWhisperASR:
     }
 
     if language:
-      options["language"] = language  
+      options["language"] = language
 
     if isinstance(self.model, BatchedInferencePipeline):
       if not batch_size:
-        self.logger.warning("Using batched model but batch size not provided, using default of 8")
+        self.logger.warning(
+          "Using batched model but batch size not provided, using default of 8"
+        )
         options["batch_size"] = 8
     else:
       if batch_size:
-        self.logger.warning(f"Not using batched model but batch size of {batch_size} is provided")
+        self.logger.warning(
+          f"Not using batched model but batch size of {batch_size} is provided"
+        )
 
     segments, info = self.model.transcribe(**options)
-    self.logger.info("Finished processing audio")
 
     return (segments, info)

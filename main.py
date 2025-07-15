@@ -17,7 +17,7 @@ def main_process():
     asr_model=asr_model,
   )
   vivoice_preprocessor.run()
-
+  # vivoice_preprocessor.test_pipeline("D:/Stuff/emandai/processed_audio/@khalid_dinh")
 
 if __name__ == "__main__":
   loader = ConfigLoader(path="config.json")

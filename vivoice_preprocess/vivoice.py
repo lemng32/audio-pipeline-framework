@@ -3,6 +3,8 @@ import pandas as pd
 from tqdm import tqdm
 from typing import Optional
 from pathlib import Path
+from underthesea import text_normalize
+from evaluate import load
 from utils.dataset_utils import (
   load_vivoice,
   filter_by_channel,
@@ -14,12 +16,17 @@ from utils.file_utils import resolve_path
 from utils.logger import get_logger
 from vivoice_preprocess.preprocessor import PreprocessorPipeline
 
+import os
 
 class VivoicePreprocessor:
+  """
+  Preprocessor for the capleaf/viVoice dataset on Hugging Face
+  """
+
   def __init__(
     self,
-    out_audio_path,
-    token,
+    out_audio_path: str,
+    token: str,
     dia_pipe,
     asr_model,
   ) -> None:
@@ -56,9 +63,18 @@ class VivoicePreprocessor:
     self,
     save_to_dataset: Optional[bool] = False,
     out_dataset_path: Optional[str] = None,
-  ):
+  ) -> None:
+    """
+    Run the preprocessor
+
+    Args:
+        save_to_dataset (Optional[bool], optional): Whether to save audio as a Hugging Face dataset. Defaults to False.
+        out_dataset_path (Optional[str], optional): Where to store the saved dataset if enabled. Defaults to None.
+    """
     if save_to_dataset:
       self.out_dataset_path = resolve_path(out_dataset_path)
+
+    metric = load("wer")
 
     # Step 1: Load dataset
     ds = load_vivoice(token=self.token)
@@ -67,8 +83,15 @@ class VivoicePreprocessor:
     index_dict = filter_by_channel(dataset=ds)
 
     # Step 3: Split dataset into valid lengths
-    test_channel = {"@khalid_dinh": index_dict["@khalid_dinh"]}
-    for key, value in test_channel.items():
+    # Hard-coded channels for quick run
+    test_channels = {
+      "@khalid_dinh": index_dict["@khalid_dinh"],
+      # "@zombiev4": index_dict["@zombiev4"],
+    }
+    for key, value in tqdm(test_channels.items(), desc="Processing channels: "):
+      # for key, value in tqdm(index_dict.items(), desc="Processing channels: "):
+      tqdm.write(f"Current channel: {key}")
+
       channel_ds = ds.select(value)
       splits = slice_dataset(dataset=channel_ds)
 
@@ -79,8 +102,8 @@ class VivoicePreprocessor:
       out_channel_path = resolve_path(self.out_audio_path / cur_channel)
 
       # Step 4: Process with pipeline
-      for split in splits:
-        texts = split["text"]
+      for split in tqdm(splits, desc="Processing channel split: "):
+        split_texts = split["text"]
         audios = [audio["array"] for audio in split["audio"]]
         sample_rate = split["audio"][0]["sampling_rate"]
 
@@ -89,24 +112,35 @@ class VivoicePreprocessor:
 
         speakers = set(res["diarize_df"]["speaker"])
         if len(speakers) > 1:
+          self.logger.info(
+            f"Number of potential speakers: {len(speakers)}. Skipping audio."
+          )
           continue
 
         segments = res["segments"]
         segments_text = [segment.text for segment in segments]
 
-        # TO-DO: Add some metric to compare the original text to the generated text
+        metadata_text = " ".join(split_texts)
+        metadata_gen_text = "".join(segments_text)
+
+        norm_reference = text_normalize(metadata_text)
+        norm_prediction = text_normalize(metadata_gen_text)
+        wer = metric.compute(references=[norm_reference], predictions=[norm_prediction])
 
         metadata.loc[len(metadata)] = {
           "file_name": res["audio"]["name"],
           "channel": cur_channel,
-          "text": " ".join(texts),
-          "gen_text": "".join(segments_text),
+          "text": metadata_text,
+          "gen_text": metadata_gen_text,
+          "wer": wer,
         }
 
         save_audio(
           out_file=out_channel_path / f"{res['audio']['name']}.wav",
           audio=res["audio"]["waveform"],
         )
+
+        tqdm.write(f"Finished processing {res['audio']['name']}")
 
       metadata.to_csv(out_channel_path / "metadata.csv", index=False)
 
