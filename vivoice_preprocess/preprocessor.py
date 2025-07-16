@@ -189,7 +189,21 @@ class PreprocessorPipeline:
       last_speaker = updated_list[-1]["speaker"] if updated_list else None
 
       if segment["end"] - segment["start"] >= MAX_SEGMENT_LENGTH:
-        print("Cac")
+        cur_start = segment["start"]
+
+        while cur_start + MAX_SEGMENT_LENGTH <= segment["end"]:
+          cut_segment = {
+            "start": cur_start,
+            "end": cur_start + MAX_SEGMENT_LENGTH,
+            "speaker": segment["speaker"]
+          }
+          updated_list.append(cut_segment)
+          cur_start += MAX_SEGMENT_LENGTH
+
+        if segment["end"] - cur_start >= MIN_SEGMENT_LENGTH:
+          segment["start"] = cur_start
+          updated_list.append(segment)
+        continue
 
       if (
         last_speaker is None
@@ -252,9 +266,6 @@ class PreprocessorPipeline:
       segments, info = self.model.transcribe_audio(tmp_audio, **transcription_options)
 
       res.append({
-        "start": seg["start"],
-        "end": seg["end"],
-        "speaker": seg["speaker"],
         "segments": segments,
         "info": info,
       })
