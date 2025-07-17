@@ -15,3 +15,5 @@ def get_logger(name: str = "app") -> logging.Logger:
     logger.addHandler(handler)
 
   return logger
+
+

@@ -16,7 +16,6 @@ from utils.file_utils import resolve_path
 from utils.logger import get_logger
 from vivoice_preprocess.preprocessor import PreprocessorPipeline
 
-import os
 
 class VivoicePreprocessor:
   """
@@ -112,8 +111,8 @@ class VivoicePreprocessor:
 
         speakers = set(res["diarize_df"]["speaker"])
         if len(speakers) > 1:
-          self.logger.info(
-            f"Number of potential speakers: {len(speakers)}. Skipping audio."
+          tqdm.write(
+            f"Audio: {res['audio']['name']} has more than 1 potential speaker. Skipping saving audio."
           )
           continue
 

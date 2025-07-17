@@ -4,6 +4,7 @@ from pyannote.audio import Pipeline
 from vivoice_preprocess.vivoice import VivoicePreprocessor
 from vivoice_preprocess.whisper_asr import FasterWhisperASR
 from utils.config_loader import ConfigLoader
+from utils.logger import get_logger
 
 
 def main_process():
@@ -20,6 +21,8 @@ def main_process():
   # vivoice_preprocessor.test_pipeline("D:/Stuff/emandai/processed_audio/@khalid_dinh")
 
 if __name__ == "__main__":
+  logger = get_logger(__name__)
+
   loader = ConfigLoader(path="config.json")
   conf = loader.config
 
@@ -28,7 +31,9 @@ if __name__ == "__main__":
     use_auth_token=conf["huggingface_token"],
   )
   dia_pipe.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-  
+  logger.info("Diariziation pipeline created.")
+
   asr_model = FasterWhisperASR(model_size="turbo")
+  logger.info("Whisper model created.")
 
   main_process()
