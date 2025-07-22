@@ -24,3 +24,4 @@ dependencies:
       - underthesea
       - evaluate
       - jiwer
+      - num2words
