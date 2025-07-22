@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 
-from typing import Optional, Union
 from utils.logger import get_logger
 from faster_whisper import WhisperModel, BatchedInferencePipeline
 
@@ -13,8 +12,8 @@ class FasterWhisperASR:
   def __init__(
     self,
     model_size: str = "large-v3",
-    batch: bool = False,
     compute_type: str = "float16",
+    transcribe_options: dict = None,
   ) -> None:
     """
     Initialize the model instance
@@ -23,11 +22,13 @@ class FasterWhisperASR:
       model_size (str, optional): The whisper model to use. Defaults to "large-v3".
       batch (bool, optional): Whether to enable batch inference. Defaults to False.
       compute_type (str, optional): Data precision for inference. Defaults to "float16".
+      transcribe_options (dict, optional): Options to pass to the transcribe method. Defaults to None.
     """
     self.logger = get_logger(__name__)
     self.model = self.load_model(
-      model_size=model_size, batch=batch, compute_type=compute_type
+      model_size=model_size, compute_type=compute_type
     )
+    self.transcribe_options = transcribe_options
 
   def get_gpu(self) -> tuple:
     """
@@ -55,14 +56,13 @@ class FasterWhisperASR:
     return (device, device_index)
 
   def load_model(
-    self, model_size: str, batch: bool, compute_type: str
-  ) -> Union[WhisperModel, BatchedInferencePipeline]:
+    self, model_size: str, compute_type: str
+  ) -> BatchedInferencePipeline:
     """
-    Load the whisper model. If batch inference is enabled, return the wrapper batched pipeline
+    Load the whisper model.
 
     Args:
       model_size (str): The whisper model to use.
-      batch (bool): Whether to enable batch inference.
       compute_type (str): Data precision for inference.
 
     Returns:
@@ -72,59 +72,24 @@ class FasterWhisperASR:
     model = WhisperModel(
       model_size, device=device, device_index=device_index, compute_type=compute_type
     )
-    if batch:
-      self.logger.info("Using batched model")
-      model = BatchedInferencePipeline(model)
+    model = BatchedInferencePipeline(model)
     return model
 
   def transcribe_audio(
     self,
     audio: np.ndarray,
-    beam_size: int = 5,
-    condition_on_previous_text: bool = True,
-    without_timestamps: bool = False,
-    vad_filter: bool = True,
-    language: Optional[str] = None,
-    batch_size: Optional[int] = None,
   ) -> tuple:
     """
     Transcribe audio given in waveform
 
     Args:
       audio (np.ndarray): 1D NumPy array of float32.
-      beam_size (int): Beam search width. Default is 5.
-      condition_on_previous_text (bool): Enable text conditioning between segments.
-      without_timestamps (bool): If True, disables timestamp prediction.
-      vad_filter (bool): Whether to apply voice activity detection filter.
-      language (Optional[str]): Manually specify language (e.g., "en").
-      batch_size (Optional[int]): Size of batches when using batched inference.
 
     Returns:
       tuple: The audio segments and transcription info
     """
-    options = {
-      "audio": audio,
-      "beam_size": beam_size,
-      "condition_on_previous_text": condition_on_previous_text,
-      "without_timestamps": without_timestamps,
-      "vad_filter": vad_filter,
-    }
-
-    if language:
-      options["language"] = language
-
-    if isinstance(self.model, BatchedInferencePipeline):
-      if not batch_size:
-        self.logger.warning(
-          "Using batched model but batch size not provided, using default of 8"
-        )
-        options["batch_size"] = 8
-    else:
-      if batch_size:
-        self.logger.warning(
-          f"Not using batched model but batch size of {batch_size} is provided"
-        )
-
-    segments, info = self.model.transcribe(**options)
+    segments, info = self.model.transcribe(
+      audio=audio, **(self.transcribe_options or {})
+    )
 
     return (segments, info)

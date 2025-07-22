@@ -1,5 +1,6 @@
 import torch
 
+from tqdm.contrib.logging import logging_redirect_tqdm
 from pyannote.audio import Pipeline
 from vivoice_preprocess.vivoice import VivoicePreprocessor
 from vivoice_preprocess.whisper_asr import FasterWhisperASR
@@ -23,17 +24,22 @@ def main_process():
 if __name__ == "__main__":
   logger = get_logger(__name__)
 
-  loader = ConfigLoader(path="config.json")
-  conf = loader.config
+  with logging_redirect_tqdm(loggers=[logger]): 
+    loader = ConfigLoader(path="config.json")
+    conf = loader.config
 
-  dia_pipe = pipe = Pipeline.from_pretrained(
-    "pyannote/speaker-diarization-3.1",
-    use_auth_token=conf["huggingface_token"],
-  )
-  dia_pipe.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-  logger.info("Diariziation pipeline created.")
+    dia_pipe = pipe = Pipeline.from_pretrained(
+      "pyannote/speaker-diarization-3.1",
+      use_auth_token=conf["huggingface_token"],
+    )
+    dia_pipe.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    logger.info("Diariziation pipeline created.")
 
-  asr_model = FasterWhisperASR(model_size="turbo")
-  logger.info("Whisper model created.")
+    asr_model = FasterWhisperASR(
+      model_size="large-v2",
+      compute_type="float16",
+      transcribe_options=conf["transcribe_options"]
+    )
+    logger.info("Whisper model created.")
 
-  main_process()
+    main_process()

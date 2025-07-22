@@ -1,10 +1,13 @@
 import pandas as pd
+import re
+import json
 
 from tqdm import tqdm
 from typing import Optional
 from pathlib import Path
 from underthesea import text_normalize
 from evaluate import load
+from num2words import num2words
 from utils.dataset_utils import (
   load_vivoice,
   filter_by_channel,
@@ -33,8 +36,55 @@ class VivoicePreprocessor:
     self.out_audio_path = resolve_path(out_audio_path)
     self.out_dataset_path = None
     self.token = token
+    self.metric = load("wer")
 
     self.pipeline = PreprocessorPipeline(dia_pipe=dia_pipe, asr_model=asr_model)
+
+  def process_text(self, references: list, predictions: list) -> dict:
+    """
+    Process the given reference and prediction text.
+
+    Args:
+      references (list): The list of reference text.
+      predictions (list): The list of ASR genererated text.
+
+    Returns:
+      dict: The dictionary to be added to the metadata, containing:
+        {
+          "text": The normalized reference,
+          "gen_text": The normalized predictions,
+          "wer": The WER score
+        }
+    """
+    
+    # Helper function to normalize text
+    def normalize_helper(text) -> str:
+      # Remove punctuation (keep numbers and letters)
+      text = re.sub(r'[^\w\s]', '', text)
+
+      # Normalize whitespace
+      text = re.sub(r"\s+", " ", text).strip()
+
+      # Convert number to text
+      text = re.sub(r"\b\d+\b", lambda m: num2words(int(m.group()), lang="vi"), text)
+
+      # text = text.translate(str.maketrans("", "", string.punctuation))
+      # text = " ".join(text.split())
+      norm_text = text_normalize(text)
+      norm_text = norm_text.lower()
+      return norm_text
+
+    metadata_text = " ".join(references)
+    metadata_gen_text = " ".join(predictions)
+
+    norm_reference = normalize_helper(metadata_text)
+    norm_prediction = normalize_helper(metadata_gen_text)
+
+    wer = self.metric.compute(
+      references=[norm_reference], predictions=[norm_prediction]
+    )
+
+    return {"text": norm_reference, "gen_text": norm_prediction, "wer": wer}
 
   def save_metadata_to_dataset(
     self, skip: bool, metadata: pd.DataFrame, audio_path: Path
@@ -73,8 +123,6 @@ class VivoicePreprocessor:
     if save_to_dataset:
       self.out_dataset_path = resolve_path(out_dataset_path)
 
-    metric = load("wer")
-
     # Step 1: Load dataset
     ds = load_vivoice(token=self.token)
 
@@ -84,12 +132,13 @@ class VivoicePreprocessor:
     # Step 3: Split dataset into valid lengths
     # Hard-coded channels for quick run
     test_channels = {
-      "@khalid_dinh": index_dict["@khalid_dinh"],
-      # "@zombiev4": index_dict["@zombiev4"],
+      #"@khalid_dinh": index_dict["@khalid_dinh"],
+      "@zombiev4": index_dict["@zombiev4"],
     }
+
     for key, value in tqdm(test_channels.items(), desc="Processing channels: "):
-      # for key, value in tqdm(index_dict.items(), desc="Processing channels: "):
-      tqdm.write(f"Current channel: {key}")
+    # for key, value in tqdm(index_dict.items(), desc="Processing channels: "):
+      self.logger.info(f"Current channel: {key}")
 
       channel_ds = ds.select(value)
       splits = slice_dataset(dataset=channel_ds)
@@ -102,44 +151,57 @@ class VivoicePreprocessor:
 
       # Step 4: Process with pipeline
       for split in tqdm(splits, desc="Processing channel split: "):
-        split_texts = split["text"]
         audios = [audio["array"] for audio in split["audio"]]
         sample_rate = split["audio"][0]["sampling_rate"]
 
         merged_audio = merge_audio(audios=audios)
-        res = self.pipeline(merged_audio, sample_rate)
 
-        speakers = set(res["diarize_df"]["speaker"])
+        res, res_json = self.pipeline(audio=merged_audio, sample_rate=sample_rate)
+
+        audio_name = res["audio"]["name"]
+        audio_waveform = res["audio"]["waveform"]
+        speakers_df = res["diarize_df"]["speaker"]
+        asr_res = res["asr_res"]
+
+        # TO-DO: Move this down to the same step as saving audio. Leaving here for saving result of pipeline
+        with open(out_channel_path / f"{audio_name}.json", "w", encoding="utf-8") as outfile:
+          json.dump(res_json, outfile, indent=4, ensure_ascii=False)
+
+        speakers = set(speakers_df)
         if len(speakers) > 1:
           tqdm.write(
-            f"Audio: {res['audio']['name']} has more than 1 potential speaker. Skipping saving audio."
+            f"Audio: {audio_name} has more than 1 potential speaker. Skipping saving audio."
           )
           continue
 
-        segments = res["segments"]
-        segments_text = [segment.text for segment in segments]
+        split_text = split["text"]
+        segments_text = []
+        if not asr_res:
+          self.logger.warning("ASR Result is empty.")
+        else:
+          for res in asr_res:
+            if not res["segments"]:
+              self.logger.warning("The current result segment is empty.")
+              continue
+            for seg in res["segments"]:
+              segments_text.append(seg.text)
 
-        metadata_text = " ".join(split_texts)
-        metadata_gen_text = "".join(segments_text)
-
-        norm_reference = text_normalize(metadata_text)
-        norm_prediction = text_normalize(metadata_gen_text)
-        wer = metric.compute(references=[norm_reference], predictions=[norm_prediction])
+        processed_text = self.process_text(
+          references=split_text, predictions=segments_text
+        )
 
         metadata.loc[len(metadata)] = {
-          "file_name": res["audio"]["name"],
+          "file_name": audio_name,
           "channel": cur_channel,
-          "text": metadata_text,
-          "gen_text": metadata_gen_text,
-          "wer": wer,
+          **processed_text,
         }
 
         save_audio(
-          out_file=out_channel_path / f"{res['audio']['name']}.wav",
-          audio=res["audio"]["waveform"],
+          out_file=out_channel_path / f"{audio_name}.wav",
+          audio=audio_waveform,
         )
 
-        tqdm.write(f"Finished processing {res['audio']['name']}")
+        self.logger.info(f"Finished processing {audio_name}")
 
       metadata.to_csv(out_channel_path / "metadata.csv", index=False)
 

@@ -1,7 +1,6 @@
 import logging
 import sys
 
-
 def get_logger(name: str = "app") -> logging.Logger:
   logger = logging.getLogger(name)
 
