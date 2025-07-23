@@ -9,7 +9,7 @@ from pydub import AudioSegment
 from pathlib import Path
 from pyannote.audio import Pipeline
 from utils.logger import get_logger
-from vivoice_preprocess.whisper_asr import FasterWhisperASR
+from pipeline.whisper_asr import FasterWhisperASR
 
 
 audio_count = 0

@@ -17,7 +17,7 @@ from utils.dataset_utils import (
 from utils.audio_utils import merge_audio, save_audio
 from utils.file_utils import resolve_path
 from utils.logger import get_logger
-from vivoice_preprocess.preprocessor import PreprocessorPipeline
+from pipeline.preprocessor import PreprocessorPipeline
 
 
 class VivoicePreprocessor:

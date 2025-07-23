@@ -2,8 +2,8 @@ import torch
 
 from tqdm.contrib.logging import logging_redirect_tqdm
 from pyannote.audio import Pipeline
-from vivoice_preprocess.vivoice import VivoicePreprocessor
-from vivoice_preprocess.whisper_asr import FasterWhisperASR
+from vivoice import VivoicePreprocessor
+from pipeline.whisper_asr import FasterWhisperASR
 from utils.config_loader import ConfigLoader
 from utils.logger import get_logger
 
@@ -19,7 +19,6 @@ def main_process():
     asr_model=asr_model,
   )
   vivoice_preprocessor.run()
-  # vivoice_preprocessor.test_pipeline("D:/Stuff/emandai/processed_audio/@khalid_dinh")
 
 if __name__ == "__main__":
   logger = get_logger(__name__)
@@ -36,8 +35,8 @@ if __name__ == "__main__":
     logger.info("Diariziation pipeline created.")
 
     asr_model = FasterWhisperASR(
-      model_size="large-v2",
-      compute_type="float16",
+      model_size=conf["model_size"],
+      compute_type=conf["compute_type"],
       transcribe_options=conf["transcribe_options"]
     )
     logger.info("Whisper model created.")
