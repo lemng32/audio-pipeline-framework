@@ -25,13 +25,13 @@ class ConfigLoader:
 
     if self._config.get("out_audio_path", "") == "":
       logger.info(
-        f"out_audio_path is not specified, using default at: {self._config["default_audio_path"]}"
+        f"out_audio_path is not specified, using default at: {self._config['default_audio_path']}"
       )
       self._config["out_audio_path"] = self._config["default_audio_path"]
 
     if self._config.get("out_dataset_path", "") == "":
       logger.info(
-        f"out_dataset_path is not specified, using default at: {self._config["default_dataset_path"]}"
+        f"out_dataset_path is not specified, using default at: {self._config['default_dataset_path']}"
       )
       self._config["out_dataset_path"] = self._config["default_dataset_path"]
 
