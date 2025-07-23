@@ -130,14 +130,7 @@ class VivoicePreprocessor:
     index_dict = filter_by_channel(dataset=ds)
 
     # Step 3: Split dataset into valid lengths
-    # Hard-coded channels for quick run
-    test_channels = {
-      #"@khalid_dinh": index_dict["@khalid_dinh"],
-      "@zombiev4": index_dict["@zombiev4"],
-    }
-
-    for key, value in tqdm(test_channels.items(), desc="Processing channels: "):
-    # for key, value in tqdm(index_dict.items(), desc="Processing channels: "):
+    for key, value in tqdm(index_dict.items(), desc="Processing channels: "):
       self.logger.info(f"Current channel: {key}")
 
       channel_ds = ds.select(value)
@@ -150,24 +143,25 @@ class VivoicePreprocessor:
       out_channel_path = resolve_path(self.out_audio_path / cur_channel)
 
       # Step 4: Process with pipeline
+      count = 0
       for split in tqdm(splits, desc="Processing channel split: "):
+        if count == 5:
+          break
+        count += 1
+
         audios = [audio["array"] for audio in split["audio"]]
         sample_rate = split["audio"][0]["sampling_rate"]
 
         merged_audio = merge_audio(audios=audios)
 
-        res, res_json = self.pipeline(audio=merged_audio, sample_rate=sample_rate)
+        audio, res = self.pipeline(audio=merged_audio, sample_rate=sample_rate)
 
-        audio_name = res["audio"]["name"]
-        audio_waveform = res["audio"]["waveform"]
-        speakers_df = res["diarize_df"]["speaker"]
+        audio_name = audio["name"]
+        audio_waveform = audio["waveform"]
+        diarize_res = res["diarize_res"]
         asr_res = res["asr_res"]
 
-        # TO-DO: Move this down to the same step as saving audio. Leaving here for saving result of pipeline
-        with open(out_channel_path / f"{audio_name}.json", "w", encoding="utf-8") as outfile:
-          json.dump(res_json, outfile, indent=4, ensure_ascii=False)
-
-        speakers = set(speakers_df)
+        speakers = set([row["speaker"] for row in diarize_res])
         if len(speakers) > 1:
           tqdm.write(
             f"Audio: {audio_name} has more than 1 potential speaker. Skipping saving audio."
@@ -179,12 +173,12 @@ class VivoicePreprocessor:
         if not asr_res:
           self.logger.warning("ASR Result is empty.")
         else:
-          for res in asr_res:
+          for _, res in asr_res.items():
             if not res["segments"]:
               self.logger.warning("The current result segment is empty.")
               continue
             for seg in res["segments"]:
-              segments_text.append(seg.text)
+              segments_text.append(seg["text"])
 
         processed_text = self.process_text(
           references=split_text, predictions=segments_text
@@ -197,9 +191,11 @@ class VivoicePreprocessor:
         }
 
         save_audio(
-          out_file=out_channel_path / f"{audio_name}.wav",
+          out_file=out_channel_path / audio_name,
           audio=audio_waveform,
         )
+        with open(out_channel_path / f"{audio_name}.json", "w", encoding="utf-8") as outfile:
+          json.dump(res, outfile, indent=4, ensure_ascii=False)
 
         self.logger.info(f"Finished processing {audio_name}")
 

@@ -7,8 +7,8 @@
   "out_audio_path": "",
   "out_dataset_path": "",
 
-  "model_size": "large_v2",
-  "compute_type:": "float16",
+  "model_size": "large-v3",
+  "compute_type": "float16",
   "transcribe_options": {
     "task": "transcribe",
     "beam_size": 5,

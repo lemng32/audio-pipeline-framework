@@ -9,6 +9,7 @@ class FasterWhisperASR:
   """
   Wrapper class for WhisperModel from faster-whisper
   """
+
   def __init__(
     self,
     model_size: str = "large-v3",
@@ -25,9 +26,7 @@ class FasterWhisperASR:
       transcribe_options (dict, optional): Options to pass to the transcribe method. Defaults to None.
     """
     self.logger = get_logger(__name__)
-    self.model = self.load_model(
-      model_size=model_size, compute_type=compute_type
-    )
+    self.model = self.load_model(model_size=model_size, compute_type=compute_type)
     self.transcribe_options = transcribe_options
 
   def get_gpu(self) -> tuple:
@@ -55,9 +54,7 @@ class FasterWhisperASR:
 
     return (device, device_index)
 
-  def load_model(
-    self, model_size: str, compute_type: str
-  ) -> BatchedInferencePipeline:
+  def load_model(self, model_size: str, compute_type: str) -> BatchedInferencePipeline:
     """
     Load the whisper model.
 
@@ -75,10 +72,7 @@ class FasterWhisperASR:
     model = BatchedInferencePipeline(model)
     return model
 
-  def transcribe_audio(
-    self,
-    audio: np.ndarray,
-  ) -> tuple:
+  def transcribe_audio(self, audio: np.ndarray) -> tuple:
     """
     Transcribe audio given in waveform
 

@@ -36,7 +36,7 @@ class PreprocessorPipeline:
     self,
     audio: Union[np.ndarray, str, AudioSegment],
     sample_rate: int = None,
-  ) -> dict:
+  ) -> tuple:
     """
     Run the audio preprocessing pipeline.
 
@@ -48,13 +48,7 @@ class PreprocessorPipeline:
       ValueError: Sample rate of audio not provided.
 
     Returns:
-      dict: A dictionary:
-      {
-        "audio": Dictionary with waveform, name, and sample rate,
-        "diarize_df": Pandas DataFrame with speaker diarization segments,
-        "segment_list": List of segments of valid lenghts,
-        "asr_res": ASR result list. Each result contains a list of segments and the transcription info,
-      }
+      tuple: The audio object and a serialized object of the obtained results 
     """
     if isinstance(audio, str):
       audio = Path(audio)
@@ -88,7 +82,7 @@ class PreprocessorPipeline:
     }
     res_json = self.process_res(res)
 
-    return (res, res_json)
+    return (audio, res_json)
 
   def standardization(
     self, audio: Union[np.ndarray, Path, AudioSegment], sample_rate: int
@@ -112,14 +106,14 @@ class PreprocessorPipeline:
 
     if isinstance(audio, np.ndarray):
       waveform = audio
-      name = f"audio_{audio_count:05}"
+      name = f"audio_{audio_count:05}.wav"
       audio_count += 1
     else:
       if isinstance(audio, Path):
         name = audio.name
         audio = AudioSegment.from_file(file=audio)
       elif isinstance(audio, (AudioSegment, np.ndarray)):
-        name = f"audio_{audio_count:05}"
+        name = f"audio_{audio_count:05}.wav"
         audio_count += 1
       else:
         raise ValueError("Unsupported file type")
