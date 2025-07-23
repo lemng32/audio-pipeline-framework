@@ -1,3 +1,5 @@
+## About
+This is my internship project, which provides a rudimentary audio process pipeline and a preprocessor for the dataset [`capleaf/Vivoice`](https://huggingface.co/datasets/capleaf/viVoice).
 ## Note
 * If running for the first time, make sure you have at least 340 GB of storage available. The dataset files are 169GB and the cache for the dataset will be aproximately the same size.
 * If you want to change the directory for download and caching, edit HuggingFace's environment variable as instructed [`here`](https://huggingface.co/docs/huggingface_hub/en/package_reference/environment_variables).
