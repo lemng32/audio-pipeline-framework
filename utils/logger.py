@@ -1,7 +1,5 @@
-# utils/logger.py
 import logging
 import sys
-
 
 def get_logger(name: str = "app") -> logging.Logger:
   logger = logging.getLogger(name)
@@ -16,3 +14,5 @@ def get_logger(name: str = "app") -> logging.Logger:
     logger.addHandler(handler)
 
   return logger
+
+

@@ -1,21 +1,27 @@
-name: AudioPipelineFramework
+name: apf
 channels:
   - nvidia
   - pytorch
   - conda-forge
   - defaults
 dependencies:
-  - python=3.12
+  - python=3.9
   - pip
   - pytorch
   - pytorch-cuda
   - torchaudio
   - torchvision
+  - ffmpeg
   - ipykernel
   - pip:
-      - datasets
-      - librosa
+      - datasets[audio]
+      - torchcodec
+      - pydub
+      - faster-whisper
       - pandas
       - pyannote.audio
-      - soundfile
       - tqdm
+      - underthesea
+      - evaluate
+      - jiwer
+      - num2words

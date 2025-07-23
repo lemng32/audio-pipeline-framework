@@ -5,5 +5,16 @@
   "default_dataset_path": "~/vivoice_preprocess/processed_dataset",
   
   "out_audio_path": "",
-  "out_dataset_path": ""
+  "out_dataset_path": "",
+
+  "transcribe_options": {
+    "task": "transcribe",
+    "beam_size": 5,
+    "best_of": 5,
+    "condition_on_previous_text": false,
+    "without_timestamps": true,
+    "vad_filter": true,
+    "language": "vi",
+    "batch_size": 8
+  }
 }

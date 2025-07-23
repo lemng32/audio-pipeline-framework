@@ -5,7 +5,7 @@
 ## Preparing HuggingFace Token
 * Create HuggingFace access token at [`hf.co/settings/tokens`](https://hf.co/settings/tokens)
 * Follow [`pyannote.audio`](https://github.com/pyannote/pyannote-audio) installation instructions, make sure to accept the user condition. No need to create another token.
-* Create an access request at [`capleaf/Vivoice`](https://huggingface.co/datasets/capleaf/viVoice) to download or stream the dataset
+* Create an access request at [`capleaf/Vivoice`](https://huggingface.co/datasets/capleaf/viVoice) to download or stream the dataset. **It will take a day or two for the request to be accepted**.
 
 ## Setting up
 1. Edit `config.json`
