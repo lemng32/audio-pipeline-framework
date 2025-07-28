@@ -68,8 +68,6 @@ class VivoicePreprocessor:
       # Convert number to text
       text = re.sub(r"\b\d+\b", lambda m: num2words(int(m.group()), lang="vi"), text)
 
-      # text = text.translate(str.maketrans("", "", string.punctuation))
-      # text = " ".join(text.split())
       norm_text = text_normalize(text)
       norm_text = norm_text.lower()
       return norm_text
@@ -143,12 +141,7 @@ class VivoicePreprocessor:
       out_channel_path = resolve_path(self.out_audio_path / cur_channel)
 
       # Step 4: Process with pipeline
-      count = 0
       for split in tqdm(splits, desc="Processing channel split: "):
-        if count == 5:
-          break
-        count += 1
-
         audios = [audio["array"] for audio in split["audio"]]
         sample_rate = split["audio"][0]["sampling_rate"]
 
