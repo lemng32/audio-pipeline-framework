@@ -89,6 +89,7 @@ class PreprocessorPipeline:
   ) -> dict:
     """
     Standardize audio by resampling, normalizing volume, converting to mono, and extracting waveform.
+    Source: https://github.com/open-mmlab/Amphion/blob/main/preprocessors/Emilia/main.py
 
     Args:
       audio (Union[np.ndarray, Path]): Audio waveform, path to audio file or pydub's AudioSegment.
@@ -112,7 +113,7 @@ class PreprocessorPipeline:
       if isinstance(audio, Path):
         name = audio.name
         audio = AudioSegment.from_file(file=audio)
-      elif isinstance(audio, (AudioSegment, np.ndarray)):
+      elif isinstance(audio, AudioSegment):
         name = f"audio_{audio_count:05}.wav"
         audio_count += 1
       else:
@@ -171,6 +172,7 @@ class PreprocessorPipeline:
   def segment_by_speaker(self, diarize_df: pd.DataFrame) -> list:
     """
     Segments and merges speaker diarization intervals based on duration and speaker identity.
+    Source: https://github.com/open-mmlab/Amphion/blob/main/preprocessors/Emilia/main.py
 
     Args:
       diarize_df (pd.DataFrame): A DataFrame containing speaker diarization results.
