@@ -16,9 +16,12 @@ This is my internship project, which provides a rudimentary audio process pipeli
 2. Create and activate conda environment:
     ```
     conda env create -f environment.yml
-    conda activate AudioPipelineFramework
+    conda activate apf
     ```
 3. Run:
     ```
     python main.py
     ```
+
+## Acknowledgement
+* Audio pipeline sourced and adapted from [Amphion's Emilia Pipe](https://github.com/open-mmlab/Amphion/tree/main/preprocessors/Emilia).

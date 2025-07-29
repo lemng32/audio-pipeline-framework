@@ -20,8 +20,6 @@ dependencies:
       - faster-whisper
       - pandas
       - pyannote.audio
-      - tqdm
       - underthesea
-      - evaluate
       - jiwer
       - num2words
